@@ -1,3 +1,5 @@
+const logger = require('./logger');
+
 /**
  * Handle errors and send a consistent response to the client.
  * @param {Response} res - Express response object.
@@ -5,7 +7,14 @@
  * @param {number} [statusCode=500] - Optional HTTP status code. Defaults to 500.
  */
 const handleError = (res, error, statusCode = 500) => {
-    console.error(`[ERROR]: ${error.message}`, error.stack); // Log error for debugging
+    logger.error(`[${new Date().toISOString()}] ${error.message}`, {
+        stack: error.stack,
+        statusCode,
+    });
+
+    console.error(`[ERROR]: ${error.message}`, error.stack); // Optional: still log to console
+
+    // Handle specific cases (as in Step 1)
 
     // Detect specific errors like API unavailability or timeouts
     if (error.code === 'ECONNREFUSED') {
