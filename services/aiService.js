@@ -1,33 +1,82 @@
 const axios = require('axios');
+const { handleError } = require('../utils/errorHandler');
 
 /**
- * Make a request to the OpenRouter API.
- * @param {string} prompt - The prompt for the AI.
- * @returns {Promise<string>} - The AI's response.
- * @throws {Error} - Throws an error if the API request fails.
+ * Generates AI completion using OpenRouter API
+ * @param {string} prompt - The prompt to send to the AI
+ * @returns {Promise<Object>} - The AI-generated response
  */
-const aiRequest = async (prompt) => {
+const generateAICompletion = async (prompt) => {
     try {
-        const response = await axios.post('https://openrouter.ai/api-endpoint', {
-            prompt,
-        }, {
-            headers: { Authorization: `Bearer YOUR_API_KEY` },
-        });
-
-        return response.data.response; // Assuming the API returns a "response" field
+        const response = await axios.post(
+            'https://api.openrouter.ai/v1/completions',
+            {
+                model: 'text-davinci-003', // Replace with your chosen model
+                prompt: prompt,
+                max_tokens: 200,
+            },
+            {
+                headers: {
+                    Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+                    'Content-Type': 'application/json',
+                },
+            }
+        );
+        return response.data;
     } catch (error) {
-        if (error.response) {
-            // Errors returned by the API
-            const { status, data } = error.response;
-            throw new Error(`OpenRouter API Error: ${status} - ${data.message || 'Unknown error'}`);
-        } else if (error.request) {
-            // Network errors or no response from API
-            throw new Error('OpenRouter API is unavailable or not responding.');
-        } else {
-            // Other errors
-            throw new Error(`Unexpected error: ${error.message}`);
-        }
+        throw new Error(`AI service error: ${error.response?.data?.message || error.message}`);
     }
 };
 
-module.exports = { aiRequest };
+/**
+ * Retrieves AI-driven insights for coffee shop searches
+ * @param {Array} coffeeShops - Array of coffee shops from the Mapbox API
+ * @param {string} userPreferences - User-specific preferences for ranking
+ * @returns {Promise<Object>} - Ranked and analyzed insights for the coffee shops
+ */
+const analyzeCoffeeShops = async (coffeeShops, userPreferences) => {
+    try {
+        const prompt = `Given the following coffee shops: ${JSON.stringify(coffeeShops)} 
+        and user preferences: ${userPreferences}, rank them by relevance.`;
+
+        const aiResponse = await generateAICompletion(prompt);
+
+        // Extract the ranking or insights from the AI response
+        const rankedShops = aiResponse.choices[0].text.trim();
+        return JSON.parse(rankedShops); // Ensure the AI returns valid JSON
+    } catch (error) {
+        throw new Error(`Error analyzing coffee shops: ${error.message}`);
+    }
+};
+
+/**
+ * Enriches user search results with AI-driven recommendations and insights.
+ * @param {Object} searchResult - The search result from Mapbox API
+ * @param {string} preferences - User-specific preferences
+ * @returns {Promise<Object>} - Enriched search results
+ */
+const enrichSearchResults = async (searchResult, preferences) => {
+    try {
+        // Extract the coffee shops and analyze them
+        const coffeeShops = searchResult.features.map((feature) => ({
+            name: feature.text,
+            address: feature.place_name,
+        }));
+
+        const insights = await analyzeCoffeeShops(coffeeShops, preferences);
+
+        return {
+            success: true,
+            coffeeShops,
+            insights,
+        };
+    } catch (error) {
+        throw new Error(`Error enriching search results: ${error.message}`);
+    }
+};
+
+module.exports = {
+    generateAICompletion,
+    analyzeCoffeeShops,
+    enrichSearchResults,
+};
