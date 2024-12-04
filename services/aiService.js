@@ -24,7 +24,7 @@ const generateAICompletion = async (prompt) => {
         );
         return response.data;
     } catch (error) {
-        throw new Error(`AI service error: ${error.response?.data?.message || error.message}`);
+        handleError(res, error)
     }
 };
 
@@ -45,7 +45,7 @@ const analyzeCoffeeShops = async (coffeeShops, userPreferences) => {
         const rankedShops = aiResponse.choices[0].text.trim();
         return JSON.parse(rankedShops); // Ensure the AI returns valid JSON
     } catch (error) {
-        throw new Error(`Error analyzing coffee shops: ${error.message}`);
+        handleError(res, error)
     }
 };
 
@@ -71,7 +71,7 @@ const enrichSearchResults = async (searchResult, preferences) => {
             insights,
         };
     } catch (error) {
-        throw new Error(`Error enriching search results: ${error.message}`);
+        handleError(res, error)
     }
 };
 
