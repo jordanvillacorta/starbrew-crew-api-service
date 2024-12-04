@@ -9,4 +9,14 @@ const pool = new Pool({
     port: process.env.DB_PORT,
 });
 
+pool.on('connect', () => {
+    console.log('Connected to the database.');
+});
+
+pool.on('error', (err) => {
+    console.error('Unexpected database error:', err);
+    process.exit(-1); // Exit the process to avoid undefined states
+});
+
+
 module.exports = pool;
