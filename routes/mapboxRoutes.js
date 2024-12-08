@@ -1,21 +1,16 @@
 const express = require('express');
-import { searchLocation } from '../services/mapboxService.js';
-
 const router = express.Router();
+const mapboxController = require('../controllers/mapboxController');
 
-router.get('mapbox/search', async (req, res) => {
-    try {
-        const { query } = req.query;
-        if (!query) {
-            return res.status(400).json({ error: 'Query is required.' });
-        }
+// Search endpoints
+router.get('/locations/search', mapboxController.searchLocation);
+router.get('/shops/nearby', mapboxController.searchNearbyShops);
 
-        const results = await searchLocation(query);
-        res.json(results);
-    } catch (error) {
-        console.error('Error searching locations:', error);
-        res.status(500).json({ error: 'Internal server error.' });
-    }
-});
+// Place details
+router.get('/shops/:id', mapboxController.getPlaceById);
+
+// Utility endpoints
+router.get('/locations/coordinates', mapboxController.getLocationCoordinates);
+router.post('/locations/bounds', mapboxController.getBoundingBox);
 
 module.exports = router;

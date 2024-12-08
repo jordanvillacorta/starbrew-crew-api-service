@@ -78,7 +78,6 @@ const enrichCoffeeShopSearch = async (req, res) => {
  */
 const healthCheck = async (req, res) => {
     try {
-        console.log('inside healthCheck');
         res.status(200).json({
             success: true,
             message: 'AI service is up and running!',

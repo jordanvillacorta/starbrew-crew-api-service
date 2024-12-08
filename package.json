@@ -2,16 +2,17 @@
     "name": "starbrew-crew-api-service",
     "version": "1.0.0",
     "description": "A backend service for locating coffee shops and generating AI-driven insights.",
-    "main": "server.js",
+    "main": "app.js",
     "scripts": {
-        "start": "node server.js",
-        "dev": "nodemon server.js",
+        "start": "node app.js",
+        "dev": "nodemon app.js",
         "lint": "eslint .",
         "test": "jest",
         "format": "prettier --write ."
     },
     "dependencies": {
         "axios": "^1.5.0",
+        "cors": "^2.8.5",
         "dotenv": "^16.4.5",
         "express": "^4.21.1",
         "express-rate-limit": "^7.0.0",
