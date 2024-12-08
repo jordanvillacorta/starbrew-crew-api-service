@@ -1,0 +1,17 @@
+.env
+node_modules/
+error.log
+
+# Additional recommended entries
+.env.*
+.env.local
+.env.development
+.env.test
+.env.production
+*.log
+.DS_Store
+coverage/
+dist/
+build/
+.idea/
+.vscode/
