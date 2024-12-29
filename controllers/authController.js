@@ -4,7 +4,16 @@ const authService = new AuthService();
 const requestCode = async (req, res) => {
     const { phoneNumber } = req.body;
 
-    if (!phoneNumber) return res.status(400).json({ success: false, message: 'Phone number is required' });
+    const phoneRegex = /^\+?[1-9]\d{1,14}$/;  // Basic E.164 format validation
+    if (!phoneNumber) {
+        return res.status(400).json({ success: false, message: 'Phone number is required' });
+    }
+    if (!phoneRegex.test(phoneNumber)) {
+        return res.status(400).json({ 
+            success: false, 
+            message: 'Invalid phone number format. Please use E.164 format (e.g., +12345678900)' 
+        });
+    }
 
     try {
         const result = await authService.sendVerificationCode(phoneNumber);

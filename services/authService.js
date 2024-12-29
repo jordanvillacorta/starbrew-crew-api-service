@@ -1,11 +1,9 @@
-const twilio = require('twilio');
 const redisClient = require('../config/redis');
 const jwt = require('jsonwebtoken');
-const { TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER, JWT_SECRET } = require('../config/dotenv');
+const { JWT_SECRET } = require('../config/dotenv');
 
 class AuthService {
     constructor() {
-        // this.twilioClient = twilio(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN);
     }
 
     generateVerificationCode() {
@@ -16,43 +14,36 @@ class AuthService {
         const verificationCode = this.generateVerificationCode();
         try {
             // Store the verification code in Redis with 10 minute expiration
-            // await redisClient.setex(`verify:${phoneNumber}`, 600, verificationCode);
+            await redisClient.setex(`verify:${phoneNumber}`, 600, verificationCode);
 
-            // Send SMS via Twilio
-            await this.twilioClient.messages.create({
-                body: `Your Starbrew verification code is: ${verificationCode}`,
-                from: TWILIO_PHONE_NUMBER,
-                to: phoneNumber
-            });
-
-            return { success: true, message: 'Verification code sent' };
+            // Instead of sending SMS, return the code (for testing/development)
+            return { 
+                success: true, 
+                message: 'Verification code generated',
+                code: verificationCode // In production, you would not return this
+            };
         } catch (error) {
-            console.error('Error sending verification code:', error);
-            throw new Error('Failed to send verification code');
+            console.error('Error generating verification code:', error);
+            throw new Error('Failed to generate verification code');
         }
     }
 
     async verifyCode(phoneNumber, inputCode) {
-        // Add input validation
         if (!phoneNumber || !inputCode) {
             throw new Error('Phone number and verification code are required');
         }
 
-        // const storedCode = await redisClient.get(`verify:${phoneNumber}`);
+        const storedCode = await redisClient.get(`verify:${phoneNumber}`);
         if (!storedCode) {
             throw new Error('Verification code expired');
         }
 
-        // Use constant-time comparison to prevent timing attacks
         if (storedCode === inputCode) {
-            // Delete the code first to prevent reuse
-            // await redisClient.del(`verify:${phoneNumber}`);
+            await redisClient.del(`verify:${phoneNumber}`);
             const token = this.generateAuthToken(phoneNumber);
             return { success: true, token, message: 'Verification successful' };
         }
 
-        // Increment failed attempts counter (optional security measure)
-        // await redisClient.incr(`verify:${phoneNumber}:attempts`);
         throw new Error('Invalid verification code');
     }
 
