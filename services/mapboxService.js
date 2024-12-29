@@ -3,7 +3,7 @@ const FRANCHISES = require('../utils/franchises.json');
 
 const MAPBOX_API_URL = 'https://api.mapbox.com';
 const MAX_RESULTS = 50;
-const SEARCH_RADIUS = 25000; // Increased from 10000 to 25000 meters (25km)
+const SEARCH_RADIUS = 25000;
 const { MAPBOX_TOKEN } = require('../config/dotenv');
 
 if (!MAPBOX_TOKEN) {

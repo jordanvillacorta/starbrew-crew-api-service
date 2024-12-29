@@ -1,68 +1,94 @@
+require('dotenv').config();
+
 const axios = require('axios');
 const { handleError } = require('../utils/errorHandler');
 const redisClient = require('../config/redis');
+const OpenAI = require('openai');
+const openai = new OpenAI(process.env.OPENAI_API_KEY);
 
 /**
  * Generates AI completion using OpenAI API
  * @param {string} prompt - The prompt to send to the AI
  * @returns {Promise<Object>} - The AI-generated response
  */
-const generateAICompletion = async (prompt) => {
+const generateAICompletion = async (prompt, retryCount = 0, maxRetries = 3) => {
     try {
-        // Try to get cached response first
+        // Try to get cached response first with a longer cache duration
         let cachedResponse;
         try {
             cachedResponse = await redisClient.get(`ai:${prompt}`);
             if (cachedResponse) {
+                console.log('Using cached response');
                 return JSON.parse(cachedResponse);
             }
         } catch (cacheError) {
             console.warn('Redis cache error:', cacheError);
-            // Continue without cache if Redis is unavailable
         }
 
-        const response = await axios.post(
-            'https://api.openai.com/v1/chat/completions',
-            {
-                model: 'gpt-4',
+        if (!process.env.OPENAI_API_KEY) {
+            throw new Error('OPENAI_API_KEY is not configured in environment variables');
+        }
+
+        try {
+            // Add a longer initial delay to help avoid rate limits
+            const baseDelay = 5000; // 5 seconds base delay
+            if (retryCount > 0) {
+                const delay = baseDelay + (Math.pow(2, retryCount) * 1000);
+                console.log(`Waiting ${delay / 1000} seconds before attempt ${retryCount + 1}...`);
+                await new Promise(resolve => setTimeout(resolve, delay));
+            }
+
+            const response = await openai.chat.completions.create({
+                model: "gpt-4o-mini",
                 messages: [
                     {
-                        role: 'system',
-                        content: 'You are a helpful assistant that provides responses in valid JSON format.'
-                    },
-                    {
-                        role: 'user',
-                        content: prompt
+                        "role": "user",
+                        "content": prompt
                     }
                 ],
-                max_tokens: 500,
-                temperature: 0.7,
-                top_p: 1,
-            },
-            {
-                headers: {
-                    'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-                    'Content-Type': 'application/json',
-                },
+                temperature: 0.7
+            });
+
+            // Cache for 24 hours during development
+            try {
+                await redisClient.set(
+                    `ai:${prompt}`,
+                    JSON.stringify(response),
+                    'EX',
+                    86400 // Cache for 24 hours
+                );
+            } catch (cacheError) {
+                console.warn('Redis cache set error:', cacheError);
             }
-        );
 
-        // Try to cache the response
-        try {
-            await redisClient.set(
-                `ai:${prompt}`, 
-                JSON.stringify(response.data),
-                'EX',
-                3600 // Cache for 1 hour
-            );
-        } catch (cacheError) {
-            console.warn('Redis cache set error:', cacheError);
-            // Continue without caching if Redis is unavailable
+            return response;
+
+        } catch (error) {
+            if (error.response?.status === 429) {
+                // Get retry-after header if it exists
+                const retryAfter = error.response.headers['retry-after']
+                    ? parseInt(error.response.headers['retry-after'])
+                    : Math.pow(2, retryCount) * 5;
+
+                console.log(`Rate limited. Server requested retry after: ${retryAfter} seconds`);
+
+                if (retryCount < maxRetries) {
+                    const delay = retryAfter * 1000;
+                    console.log(`Retrying in ${delay / 1000} seconds...`);
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                    return generateAICompletion(prompt, retryCount + 1, maxRetries);
+                }
+            }
+            throw error;
         }
-
-        return response.data;
     } catch (error) {
-        throw new Error(`AI Completion error: ${error.message}`);
+        console.error('Full error details:', {
+            message: error.message,
+            response: error.response?.data,
+            status: error.response?.status,
+            headers: error.response?.headers
+        });
+        throw error;
     }
 };
 

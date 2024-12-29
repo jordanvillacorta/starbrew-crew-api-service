@@ -1,7 +1,7 @@
 const jwt = require('jsonwebtoken');
 const { JWT_SECRET } = require('../config/dotenv');
 
-module.exports = (req, res, next) => {
+function authenticate(req, res, next) {
     const authHeader = req.headers.authorization;
 
     if (!authHeader) {
@@ -20,4 +20,6 @@ module.exports = (req, res, next) => {
     } catch (error) {
         res.status(401).json({ error: 'Unauthorized' });
     }
-};
+}
+
+module.exports = authenticate;
